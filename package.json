@@ -1,0 +1,9 @@
+{
+  "name": "private-connect",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Private Connect monorepo",
+  "scripts": {
+    "dev": "echo 'Run app-specific dev scripts.'"
+  }
+}
