@@ -72,9 +72,20 @@ function redirect(res, location) {
   res.end();
 }
 
+const additionalOrigins = (process.env.WEB_ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
+const allowedOrigins = new Set([WEB_BASE_URL, ...additionalOrigins]);
+
+function isLocalDevOrigin(origin) {
+  return /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+}
+
 function setCors(req, res) {
   const origin = req.headers.origin;
-  const allowedOrigin = origin && origin === WEB_BASE_URL ? origin : WEB_BASE_URL;
+  const allowedOrigin =
+    origin && (allowedOrigins.has(origin) || isLocalDevOrigin(origin)) ? origin : WEB_BASE_URL;
   res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");

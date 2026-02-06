@@ -1,4 +1,4 @@
 #!/bin/sh
 set -eu
 
-./scripts/start.sh
+./scripts/stop.sh

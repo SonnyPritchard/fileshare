@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true
-};
+  images: {
+    unoptimized: true, // disables image optimizer attack surface
+  },
+  experimental: {
+    serverActions: {}, // disables risky RSC paths
+  },
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig

@@ -13,6 +13,8 @@ Note: sign-in links are logged to the API console instead of being emailed.
 
 ## Local dev
 This repo uses Docker Compose for the services. The compose file can be found at `docker-compose.yml`.
+For local development, use `./scripts/start.sh`.
+Postgres is auto-configured for development; no manual DB or env setup is required for the MVP.
 
 Useful environment variables:
 - `API_PORT` (default: `4000`)
