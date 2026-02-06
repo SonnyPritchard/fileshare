@@ -1,39 +1,45 @@
-# private-connect
+# Fileshare control plane
 
-Private Connect links devices to a private team space, enabling direct file transfer and friendly access URLs for local apps with no user setup.
+## Overview
+This monorepo contains a control-plane web app (`apps/web`) and API service (`apps/api`).
 
-## Core features
-- Link devices to a private team space
-- Send files directly between devices
-- Access private local apps via friendly URLs
-- Desktop agent for private connectivity with an abstracted transport layer
+## Auth flow (MVP)
+- Users enter an email on `/login`.
+- The API creates a short-lived sign-in token and logs the sign-in URL to the API console.
+- Visiting that URL verifies the token, creates a session, sets an HTTP-only cookie, and redirects to `/dashboard`.
+- Sessions persist across refresh until the server-side expiry.
 
-## Repository structure
-- `apps/web` — Web app (Next.js)
-- `apps/api` — API service
-- `apps/agent` — Desktop agent
-- `packages/shared` — Shared types/utilities
-- `infra` — Infrastructure definitions
-- `docs` — Product and engineering docs
-- `scripts` — Automation helpers
+Note: sign-in links are logged to the API console instead of being emailed.
 
-## Web app
+## Local dev
+This repo uses Docker Compose for the services. The compose file can be found at `docker-compose.yml`.
 
-Location: apps/web
+Useful environment variables:
+- `API_PORT` (default: `4000`)
+- `WEB_PORT` (default: `3000`)
+- `WEB_BASE_URL` (default: `http://localhost:3000`)
+- `API_BASE_URL` (default: `http://localhost:4000`)
 
-Provides the control-plane UI for:
-- Authentication
-- Device visibility
-- Device linking
-- File transfer initiation (UI only)
+## Docker compose (current)
+```yaml
+version: "3.9"
 
-## Run locally
-1. Copy `.env.example` to `.env` and adjust as needed.
-2. Run `./start.sh`.
-3. Services will start via Docker Compose.
+services:
+  api:
+    build:
+      context: ./apps/api
+    environment:
+      - API_PORT=${API_PORT:-4000}
+    ports:
+      - "${API_PORT:-4000}:4000"
 
-## MVP scope (not included)
-- Device or file sync
-- Mobile apps
-- SSO or enterprise features
-- Advanced admin/analytics tooling
+  web:
+    build:
+      context: ./apps/web
+    environment:
+      - WEB_PORT=${WEB_PORT:-3000}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      - api
+```

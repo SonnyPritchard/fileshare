@@ -27,3 +27,15 @@ export type ControlPlaneMetadata = {
     authRef?: string;
   };
 };
+
+export type User = {
+  id: string;
+  email: string;
+  createdAt: string;
+};
+
+export type Session = {
+  id: string;
+  userId: string;
+  expiresAt: string;
+};

@@ -36,8 +36,11 @@ Avoid these words in user-facing text: VPN, IP, tunnel, node.
 - Update docs alongside code
 - Use TODOs to mark intentional gaps
 
+## Recent doc updates
+- README now documents the real email sign-in flow and console-logged sign-in links
+
 ## Web frontend
 - Next.js control-plane UI implemented
 - Landing, auth, dashboard, and device linking pages added
-- Uses mocked API functions
+- Auth now uses real API endpoints with session cookies
 - No transport or networking concepts exposed in UI
