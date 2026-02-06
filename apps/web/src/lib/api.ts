@@ -7,17 +7,43 @@ type DevicePairCompleteResponse = {
 };
 
 export async function startDevicePairing(deviceName: string): Promise<DevicePairStartResponse> {
-  // TODO: Replace with real control-plane API call.
-  if (!deviceName) {
-    return { pairingCode: "000000" };
+  // TODO: Add auth headers once control-plane auth moves to tokens.
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000"}/devices/pair/start`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({ deviceName }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Unable to start pairing");
   }
-  return { pairingCode: "123456" };
+
+  return response.json();
 }
 
 export async function completeDevicePairing(code: string): Promise<DevicePairCompleteResponse> {
-  // TODO: Replace with real control-plane API call.
-  if (!code) {
-    return { success: true };
+  // TODO: Add agent enrollment handshake once available.
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000"}/devices/pair/complete`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({ pairingCode: code }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Unable to complete pairing");
   }
-  return { success: true };
+
+  return response.json();
 }

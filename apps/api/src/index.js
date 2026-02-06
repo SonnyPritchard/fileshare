@@ -14,6 +14,7 @@ const COOKIE_SECURE =
   process.env.COOKIE_SECURE === "true" ||
   WEB_BASE_URL.startsWith("https://") ||
   API_BASE_URL.startsWith("https://");
+const PAIRING_CODE_TTL_MS = 10 * 60 * 1000;
 
 const dbPath = process.env.AUTH_DB_PATH || path.join(__dirname, "..", "data", "auth.db");
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -59,6 +60,34 @@ const insertSessionStmt = db.prepare(
 const findSessionStmt = db.prepare("SELECT * FROM sessions WHERE id = ?");
 const deleteSessionStmt = db.prepare("DELETE FROM sessions WHERE id = ?");
 const cleanupSessionsStmt = db.prepare("DELETE FROM sessions WHERE expires_at <= ?");
+
+const pendingPairings = new Map();
+const devices = new Map();
+
+function getTeamIdForUser(user) {
+  return `team_${user.id}`;
+}
+
+function cleanupPendingPairings() {
+  const now = Date.now();
+  for (const [code, pending] of pendingPairings) {
+    if (pending.expiresAt <= now) {
+      pendingPairings.delete(code);
+    }
+  }
+}
+
+function generatePairingCode() {
+  let code = "";
+  for (let attempts = 0; attempts < 5; attempts += 1) {
+    const value = crypto.randomInt(0, 1_000_000);
+    code = String(value).padStart(6, "0");
+    if (!pendingPairings.has(code)) {
+      return code;
+    }
+  }
+  return code;
+}
 
 function json(res, status, payload) {
   res.statusCode = status;
@@ -293,13 +322,101 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    const teamId = getTeamIdForUser(user);
+
     json(res, 200, {
-      teamId: "team_demo",
+      teamId,
       deviceId: "device_demo",
       peers: [{ deviceId: "device_peer_1", label: "Alice's laptop" }],
       services: [{ id: "svc_1", deviceId: "device_peer_1", label: "Files" }],
       transport: { provider: "tailscale" },
     });
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/devices/pair/start") {
+    const session = getSessionFromRequest(req);
+    const user = getUserFromSession(session);
+    if (!user) {
+      json(res, 401, { error: "Unauthorized" });
+      return;
+    }
+
+    try {
+      cleanupPendingPairings();
+      const body = await readJson(req);
+      const deviceName =
+        typeof body.deviceName === "string" && body.deviceName.trim()
+          ? body.deviceName.trim()
+          : "New device";
+      const teamId = getTeamIdForUser(user);
+      const code = generatePairingCode();
+      const expiresAt = Date.now() + PAIRING_CODE_TTL_MS;
+      const pending = {
+        id: crypto.randomUUID(),
+        name: deviceName,
+        teamId,
+        userId: user.id,
+        status: "pending",
+        expiresAt,
+      };
+
+      // TODO: Persist pending pairings and device records.
+      pendingPairings.set(code, pending);
+
+      json(res, 200, { pairingCode: code });
+    } catch (error) {
+      json(res, 400, { error: "Invalid request" });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/devices/pair/complete") {
+    const session = getSessionFromRequest(req);
+    const user = getUserFromSession(session);
+    if (!user) {
+      json(res, 401, { error: "Unauthorized" });
+      return;
+    }
+
+    try {
+      cleanupPendingPairings();
+      const body = await readJson(req);
+      const pairingCode =
+        typeof body.pairingCode === "string" ? body.pairingCode.trim() : "";
+
+      if (!/^\d{6}$/.test(pairingCode)) {
+        json(res, 400, { error: "Pairing code must be 6 digits" });
+        return;
+      }
+
+      const pending = pendingPairings.get(pairingCode);
+      if (!pending) {
+        json(res, 400, { error: "Pairing code is invalid or expired" });
+        return;
+      }
+
+      if (pending.userId !== user.id) {
+        json(res, 403, { error: "Pairing code is for a different account" });
+        return;
+      }
+
+      // TODO: Trigger agent enrollment for this device.
+      const device = {
+        id: pending.id,
+        name: pending.name,
+        teamId: pending.teamId,
+        status: "active",
+        lastSeenAt: new Date().toISOString(),
+      };
+
+      pendingPairings.delete(pairingCode);
+      devices.set(device.id, device);
+
+      json(res, 200, { success: true });
+    } catch (error) {
+      json(res, 400, { error: "Invalid request" });
+    }
     return;
   }
 
